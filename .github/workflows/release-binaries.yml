@@ -6,18 +6,20 @@ on:
 name: Upload Binary to Release
 jobs:
   build:
-    permissions: write
+    permissions: write-all
     name: Upload Binaries to Release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Setup Odin Environment
         uses: laytan/setup-odin@v2
         with:
-          token: false
-          release: latest
+          token: ${{ secrets.GITHUB_TOKEN }}
+          release: false
           branch: master
           llvm-version: 18
           build-type: debug
