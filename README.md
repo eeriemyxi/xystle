@@ -3,8 +3,7 @@ Xystle is a command-line tool that reverse-engineers
 [ZeroGPT](https://www.zerogpt.com)'s API to efficiently leverage its free API
 (upto 15K characters) on the terminal.
 
-ZeroGPT itself is used for validating what proportion of your input is
-AI-generated (subject to inaccuracies).
+ZeroGPT itself is used to check for AI-generated content in text (subject to inaccuracies).
 
 For your convenience, Xystle also appealingly highlights the parts of your input
 that ZeroGPT detected as AI-generated. A demonstration of this is shown in the
