@@ -17,6 +17,17 @@ image below.
 # Demo
 ![](https://files.catbox.moe/7gn11e.png)
 
+# Installation
+Automated prebuilt-binaries using CI/CD is planned. For now however you'll have
+to compile it from source.
+
+```bash
+git clone --recurse-submodules https://github.com/eeriemyxi/xystle
+cd xystle
+odin build .
+./xystle -help
+```
+
 # Command-line Arguments
 Help: `xystle -help`
 ```
