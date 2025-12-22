@@ -27,8 +27,7 @@ jobs:
 
       - name: Build Binaries
         run: |
-          mkdir bin/
-          odin build . -o:aggressive -out:bin/xystle-linux-amd64.bin -target:linux_amd64
+          make OPTIMIZATION=aggressive TARGET=bin/xystle-linux-amd64.bin PLATFORM=linux_amd64
           sha256sum bin/xystle-linux-amd64.bin > bin/xystle-linux-amd64.sha256
 
       - name: Upload Binaries to Release

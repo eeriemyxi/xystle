@@ -123,6 +123,7 @@ render_key_value_info :: proc(key: string, value: string) -> string {
 
 Options :: struct {
 	i: os.Handle `args:"pos=0,file=r" usage:"Input file. Optional, reads from stdin if omitted"`,
+    v: bool `usage:"Show version info"`
 }
 
 opt: Options
@@ -131,8 +132,13 @@ main :: proc() {
 	style: flags.Parsing_Style = .Odin
 	flags.parse_or_exit(&opt, os.args, style)
 
+    if opt.v {
+        fmt.printfln("xystle version %s", #config(VERSION, "none"))
+        os2.exit(0)
+    }
+    
 	text: string
-
+    
 	if opt.i != 0 {
 		data := os.read_entire_file(opt.i) or_else panic("Failed to read file")
 		text = string(data)

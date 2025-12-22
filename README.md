@@ -30,8 +30,8 @@ Xystle was developed using the [Odin](https://odin-lang.org) programming languag
 ```bash
 git clone --recurse-submodules https://github.com/eeriemyxi/xystle
 cd xystle
-odin build .
-./xystle -help
+make
+bin/xystle -help
 ```
 
 # Command-line Arguments
