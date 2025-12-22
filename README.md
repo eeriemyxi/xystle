@@ -24,7 +24,7 @@ Xystle has officially only been tested on a Linux AMD64 system.
 You can download prebuilt binaries from [Github Releases](https://github.com/eeriemyxi/xystle/releases/latest). Platforms included:
 - Linux AMD64
 
-## Compile from Source.
+## Compile from Source
 Xystle was developed using the [Odin](https://odin-lang.org) programming language.
 
 ```bash
