@@ -133,7 +133,7 @@ main :: proc() {
 	flags.parse_or_exit(&opt, os.args, style)
 
     if opt.v {
-        fmt.printfln("xystle version %s", #config(VERSION, "none"))
+        fmt.printfln("xystle version %s (%s %s)", #config(VERSION, "none"), #config(GIT_HASH, "none"), #config(COMP_DATE, "none"))
         os2.exit(0)
     }
     
