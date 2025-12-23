@@ -12,6 +12,8 @@ import "core:terminal/ansi"
 import ohttp "odin-http"
 import ohttp_client "odin-http/client"
 
+ZG_FREE_MAX_CHARS :: 15_000
+
 Error :: enum int {
 	MALFORMED_RESPONSE,
 }
@@ -123,7 +125,8 @@ render_key_value_info :: proc(key: string, value: string) -> string {
 
 Options :: struct {
 	i: os.Handle `args:"pos=0,file=r" usage:"Input file. Optional, reads from stdin if omitted"`,
-    v: bool `usage:"Show version info"`
+	v: bool `usage:"Show version info"`,
+	j: bool `usage:"Output JSON response and exit. Useful for scripting"`,
 }
 
 opt: Options
@@ -132,13 +135,18 @@ main :: proc() {
 	style: flags.Parsing_Style = .Odin
 	flags.parse_or_exit(&opt, os.args, style)
 
-    if opt.v {
-        fmt.printfln("xystle version %s (%s %s)", #config(VERSION, "none"), #config(GIT_HASH, "none"), #config(COMP_DATE, "none"))
-        os2.exit(0)
-    }
-    
+	if opt.v {
+		fmt.printfln(
+			"xystle version %s (%s %s)",
+			#config(VERSION, "none"),
+			#config(GIT_HASH, "none"),
+			#config(COMP_DATE, "none"),
+		)
+		os2.exit(0)
+	}
+
 	text: string
-    
+
 	if opt.i != 0 {
 		data := os.read_entire_file(opt.i) or_else panic("Failed to read file")
 		text = string(data)
@@ -147,22 +155,29 @@ main :: proc() {
 			os2.exit(1)
 		}
 	} else {
-		fmt.println("[INFO] Reading from stdin...")
+		if !opt.j do fmt.println("[INFO] Reading from stdin...")
 		textRaw, err := os2.read_entire_file(os2.stdin, context.allocator)
 		if err != nil {
 			fmt.eprintln("[ERROR] Something went wrong when reading stdin")
 			os2.exit(1)
 		}
-        if len(textRaw) == 0 {
-            fmt.eprintln("[ERROR] Stdin is empty")
-            os2.exit(1)
-        }
+		if len(textRaw) == 0 {
+			fmt.eprintln("[ERROR] Stdin is empty")
+			os2.exit(1)
+		}
 		text = string(textRaw)
 	}
 
 	assert(text != "")
 
-	fmt.println("[INFO] Processing input...")
+	if len(text) > ZG_FREE_MAX_CHARS {
+		fmt.eprintfln(
+			"[WARN] Input's length is %d, which exceeds 15,000 characters (free limit)",
+			len(text),
+		)
+	}
+
+	if !opt.j do fmt.println("[INFO] Processing input...")
 
 	inp_buf := bytes.Buffer{}
 	bytes.buffer_init_string(&inp_buf, zg_prepare_input(text))
@@ -177,26 +192,31 @@ main :: proc() {
 	res, err := ohttp_client.request(&request, "https://api.zerogpt.com/api/detect/detectText")
 	if err != nil {
 		fmt.eprintfln("[ERROR] Request failed: %s", err)
-        os2.exit(1)
+		os2.exit(1)
 	}
 	defer ohttp_client.response_destroy(&res)
 
 	body, alloc, berr := ohttp_client.response_body(&res)
 	if berr != nil {
 		fmt.eprintfln("[ERROR] Retreiving body failed: %s", berr)
-        os2.exit(1)
+		os2.exit(1)
 	}
 	defer ohttp_client.body_destroy(body, alloc)
 
 	resp, zg_resp_err := zg_response_parse(body)
 	if zg_resp_err != nil {
 		fmt.eprintfln("[ERROR] parsing response body failed: %s", zg_resp_err)
-        os2.exit(1)
+		os2.exit(1)
 	}
 
 	if resp.code != 200 {
 		fmt.eprintln("[ERROR] ZeroGPT isn't accepting your input.")
-        os2.exit(1)
+		os2.exit(1)
+	}
+
+	if opt.j {
+		fmt.println(body)
+		os2.exit(0)
 	}
 
 	w := get_term_size()
