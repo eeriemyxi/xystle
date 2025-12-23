@@ -176,26 +176,26 @@ main :: proc() {
 
 	res, err := ohttp_client.request(&request, "https://api.zerogpt.com/api/detect/detectText")
 	if err != nil {
-		fmt.eprintfln("Request failed: %s", err)
+		fmt.eprintfln("[ERROR] Request failed: %s", err)
         os2.exit(1)
 	}
 	defer ohttp_client.response_destroy(&res)
 
 	body, alloc, berr := ohttp_client.response_body(&res)
 	if berr != nil {
-		fmt.eprintfln("Error retreiving body: %s", berr)
+		fmt.eprintfln("[ERROR] Retreiving body failed: %s", berr)
         os2.exit(1)
 	}
 	defer ohttp_client.body_destroy(body, alloc)
 
 	resp, zg_resp_err := zg_response_parse(body)
 	if zg_resp_err != nil {
-		fmt.eprintfln("Error parsing response body: %s", zg_resp_err)
+		fmt.eprintfln("[ERROR] parsing response body failed: %s", zg_resp_err)
         os2.exit(1)
 	}
 
 	if resp.code != 200 {
-		fmt.eprintln("ZeroGPT isn't accepting your input.")
+		fmt.eprintln("[ERROR] ZeroGPT isn't accepting your input.")
         os2.exit(1)
 	}
 
