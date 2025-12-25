@@ -243,7 +243,7 @@ main :: proc() {
 			os2.exit(1)
 		}
 	} else {
-		if !opt.j do log.infof("Reading from stdin...")
+		log.infof("Reading from stdin...")
 		textRaw, err := os2.read_entire_file(os2.stdin, context.allocator)
 		if err != nil {
 			log.errorf("Something went wrong when reading stdin: %#v", err)
@@ -265,7 +265,7 @@ main :: proc() {
 		)
 	}
 
-	if !opt.j do log.infof("Processing input...")
+	log.infof("Processing input...")
 
 	inp_buf := bytes.Buffer{}
 	bytes.buffer_init_string(&inp_buf, zg_prepare_input(text))
