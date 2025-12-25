@@ -127,6 +127,7 @@ highlight_text :: proc(text: string, highlights: [dynamic]string) -> string {
 
 display_zg_response :: proc(resp: ZG_Input_Response, input_text: string) {
 	w := get_term_size()
+	log.debugf("w=%v", w)
 	print_center(w, "VERDICT", " ")
 	fmt.print("\n\n")
 	print_center(
@@ -165,6 +166,7 @@ get_zg_response_for_input :: proc(
 		headers = zg_default_headers(),
 		body    = inp_buf,
 	}
+	log.debugf("request=%v", request)
 
 	res, rerr := ohttp_client.request(&request, "https://api.zerogpt.com/api/detect/detectText")
 	if rerr != nil {
@@ -176,6 +178,7 @@ get_zg_response_for_input :: proc(
 	if berr != nil {
 		return {}, body, Error{type = .MALFORMED_RESPONSE, message = fmt.tprintf("retreiving body failed: %#v", berr)}, false
 	}
+	log.debugf("body=%v alloc=%v", body, alloc)
 	defer ohttp_client.body_destroy(body, alloc)
 
 	resp, reserr, ok := zg_response_parse(body)
@@ -185,6 +188,7 @@ get_zg_response_for_input :: proc(
 			message = fmt.tprintf("parsing response body failed: %#v", reserr),
 		}, false
 	}
+    log.debugf("resp=%v", resp)
 
 	if resp.code != 200 {
 		return resp, body, Error {
