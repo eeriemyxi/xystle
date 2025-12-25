@@ -216,7 +216,7 @@ display_version :: proc() {
 }
 
 Options :: struct {
-	i: os.Handle `args:"pos=0,file=r" usage:"Input file. Optional, reads from stdin if omitted"`,
+	i: os.Handle `args:"pos=0,file=r" usage:"Input file. Reads from stdin if not provided"`,
 	v: bool `usage:"Show version info"`,
 	j: bool `usage:"Output JSON response and exit. Useful for scripting"`,
 	l: log.Level `usage:"Set log level. Info by default. Options: Debug, Info, Warning, Error, Fatal"`,

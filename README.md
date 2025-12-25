@@ -39,7 +39,7 @@ Help: `xystle -help`
 Usage:
  xystle [i] [-j] [-l] [-v]
 Flags:
- -i:<Handle>        | Input file. Optional, reads from stdin if omitted
+ -i:<Handle>        | Input file. Reads from stdin if not provided
                     |
  -j                 | Output JSON response and exit. Useful for scripting
  -l:<Logger_Level>  | Set log level. Info by default. Options: Debug, Info, Warning, Error, Fatal
