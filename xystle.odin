@@ -14,8 +14,13 @@ import ohttp_client "odin-http/client"
 
 ZG_FREE_MAX_CHARS :: 15_000
 
-Error :: enum int {
+Error_Type :: enum int {
 	MALFORMED_RESPONSE,
+}
+
+Error :: struct {
+	type:    Error_Type,
+	message: string,
 }
 
 ZG_Input_Response :: struct {
@@ -71,18 +76,23 @@ zg_default_headers :: proc() -> (headers: ohttp.Headers) {
 	return
 }
 
-zg_response_parse :: proc(body: ohttp_client.Body_Type) -> (resp: ZG_Input_Response, err: Error) {
+zg_response_parse :: proc(
+	body: ohttp_client.Body_Type,
+) -> (
+	resp: ZG_Input_Response,
+	err: Maybe(Error),
+) {
 	switch b in body {
 	case ohttp_client.Body_Plain:
 		jerr := json.unmarshal_string(b, &resp)
-		if jerr != nil do return resp, .MALFORMED_RESPONSE
+		if jerr != nil do return resp, nil
 		return
 	case ohttp_client.Body_Url_Encoded:
 		unreachable()
 	case ohttp_client.Body_Error:
 		unreachable()
 	}
-	return resp, .MALFORMED_RESPONSE
+	return resp, Error{type = .MALFORMED_RESPONSE, message = "Couldn't parse response"}
 }
 
 highlight_text :: proc(text: string, highlights: [dynamic]string) -> string {
@@ -111,6 +121,76 @@ highlight_text :: proc(text: string, highlights: [dynamic]string) -> string {
     // odinfmt: enable
 
 	return strings.to_string(str)
+}
+
+display_zg_response :: proc(resp: ZG_Input_Response, input_text: string) {
+	w := get_term_size()
+	print_center(w, "VERDICT", " ")
+	fmt.print("\n\n")
+	print_center(
+		w,
+		fmt.tprintf(
+			"Your text is: %s %0.2f%% %s AI\n",
+			ansi.CSI + ansi.FG_WHITE + ";" + ansi.BOLD + ";" + ansi.BG_MAGENTA + ansi.SGR,
+			resp.data.fakePercentage,
+			ansi.CSI + ansi.RESET + ansi.SGR,
+		),
+	)
+	fmt.print("\n")
+
+	print_center(w, "INPUT TEXT", " ")
+	fmt.print("\n")
+	fmt.println(highlight_text(input_text, resp.data.h))
+
+	print_center(w, "ADDITIONAL INFORMATION")
+	fmt.print("\n")
+	fmt.println(render_key_value_info("Total Words", fmt.tprintf("%d", resp.data.textWords)))
+	fmt.println(render_key_value_info("AI Words", fmt.tprintf("%d", resp.data.aiWords)))
+	fmt.println(render_key_value_info("Feedback", resp.data.feedback))
+	fmt.println(render_key_value_info("Detected Language", resp.data.detected_language))
+}
+
+get_zg_response_for_input :: proc(
+	inp_buf: bytes.Buffer,
+) -> (
+	ZG_Input_Response,
+	Maybe(ohttp_client.Body_Type),
+	Maybe(Error),
+) {
+	request := ohttp_client.Request {
+		method  = .Post,
+		headers = zg_default_headers(),
+		body    = inp_buf,
+	}
+
+	res, rerr := ohttp_client.request(&request, "https://api.zerogpt.com/api/detect/detectText")
+	if rerr != nil {
+		return {}, nil, Error{type = .MALFORMED_RESPONSE, message = fmt.tprintf("request failed: %s", rerr)}
+	}
+	defer ohttp_client.response_destroy(&res)
+
+	body, alloc, berr := ohttp_client.response_body(&res)
+	if berr != nil {
+		return {}, body, Error{type = .MALFORMED_RESPONSE, message = fmt.tprintf("retreiving body failed: %s", berr)}
+	}
+	defer ohttp_client.body_destroy(body, alloc)
+
+	resp, reserr := zg_response_parse(body)
+	if reserr != nil {
+		return resp, body, Error {
+			type = .MALFORMED_RESPONSE,
+			message = fmt.tprintf("parsing response body failed: %s", reserr),
+		}
+	}
+
+	if resp.code != 200 {
+		return resp, body, Error {
+			type = .MALFORMED_RESPONSE,
+			message = fmt.tprintf("ZeroGPT isn't accepting your input."),
+		}
+	}
+
+	return resp, body, nil
 }
 
 render_key_value_info :: proc(key: string, value: string) -> string {
@@ -183,65 +263,11 @@ main :: proc() {
 	bytes.buffer_init_string(&inp_buf, zg_prepare_input(text))
 	defer bytes.buffer_destroy(&inp_buf)
 
-	request := ohttp_client.Request {
-		method  = .Post,
-		headers = zg_default_headers(),
-		body    = inp_buf,
-	}
-
-	res, err := ohttp_client.request(&request, "https://api.zerogpt.com/api/detect/detectText")
-	if err != nil {
-		fmt.eprintfln("[ERROR] Request failed: %s", err)
-		os2.exit(1)
-	}
-	defer ohttp_client.response_destroy(&res)
-
-	body, alloc, berr := ohttp_client.response_body(&res)
-	if berr != nil {
-		fmt.eprintfln("[ERROR] Retreiving body failed: %s", berr)
-		os2.exit(1)
-	}
-	defer ohttp_client.body_destroy(body, alloc)
-
-	resp, zg_resp_err := zg_response_parse(body)
-	if zg_resp_err != nil {
-		fmt.eprintfln("[ERROR] parsing response body failed: %s", zg_resp_err)
-		os2.exit(1)
-	}
-
-	if resp.code != 200 {
-		fmt.eprintln("[ERROR] ZeroGPT isn't accepting your input.")
-		os2.exit(1)
-	}
-
+	resp, body, err := get_zg_response_for_input(inp_buf)
 	if opt.j {
 		fmt.println(body)
 		os2.exit(0)
 	}
 
-	w := get_term_size()
-
-	print_center(w, "VERDICT", " ")
-	fmt.print("\n\n")
-	print_center(
-		w,
-		fmt.tprintf(
-			"Your text is: %s %0.2f%% %s AI\n",
-			ansi.CSI + ansi.FG_WHITE + ";" + ansi.BOLD + ";" + ansi.BG_MAGENTA + ansi.SGR,
-			resp.data.fakePercentage,
-			ansi.CSI + ansi.RESET + ansi.SGR,
-		),
-	)
-	fmt.print("\n")
-
-	print_center(w, "INPUT TEXT", " ")
-	fmt.print("\n")
-	fmt.println(highlight_text(text, resp.data.h))
-
-	print_center(w, "ADDITIONAL INFORMATION")
-	fmt.print("\n")
-	fmt.println(render_key_value_info("Total Words", fmt.tprintf("%d", resp.data.textWords)))
-	fmt.println(render_key_value_info("AI Words", fmt.tprintf("%d", resp.data.aiWords)))
-	fmt.println(render_key_value_info("Feedback", resp.data.feedback))
-	fmt.println(render_key_value_info("Detected Language", resp.data.detected_language))
+	display_zg_response(resp, text)
 }
