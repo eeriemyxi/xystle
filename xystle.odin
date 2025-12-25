@@ -206,6 +206,15 @@ render_key_value_info :: proc(key: string, value: string) -> string {
 	)
 }
 
+display_version :: proc() {
+    fmt.printfln(
+        "xystle version %v (%v %v)",
+        #config(VERSION, "none"),
+        #config(GIT_HASH, "none"),
+        #config(COMP_DATE, "none"),
+    )
+}
+
 Options :: struct {
 	i: os.Handle `args:"pos=0,file=r" usage:"Input file. Optional, reads from stdin if omitted"`,
 	v: bool `usage:"Show version info"`,
@@ -224,12 +233,7 @@ main :: proc() {
     context.logger = log.create_console_logger(level)
 
 	if opt.v {
-		fmt.printfln(
-			"xystle version %s (%s %s)",
-			#config(VERSION, "none"),
-			#config(GIT_HASH, "none"),
-			#config(COMP_DATE, "none"),
-		)
+		display_version()
 		os2.exit(0)
 	}
 
