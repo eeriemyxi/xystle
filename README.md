@@ -37,10 +37,11 @@ bin/xystle -help
 Help: `xystle -help`
 ```
 Usage:
-        xystle [i] [-j] [-v]
+ xystle [i] [-j] [-l] [-v]
 Flags:
-        -i:<Handle>  | Input file. Optional, reads from stdin if omitted
-                     |
-        -j           | Output JSON response and exit. Useful for scripting
-        -v           | Show version info
+ -i:<Handle>        | Input file. Optional, reads from stdin if omitted
+                    |
+ -j                 | Output JSON response and exit. Useful for scripting
+ -l:<Logger_Level>  | Set log level. Info by default. Options: Debug, Info, Warning, Error, Fatal
+ -v                 | Show version info
 ```
