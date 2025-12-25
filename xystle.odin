@@ -5,6 +5,7 @@ import "core:bytes"
 import "core:encoding/json"
 import "core:flags"
 import "core:fmt"
+import "core:log"
 import "core:os"
 import "core:os/os2"
 import "core:strings"
@@ -80,19 +81,20 @@ zg_response_parse :: proc(
 	body: ohttp_client.Body_Type,
 ) -> (
 	resp: ZG_Input_Response,
-	err: Maybe(Error),
+	err: Error,
+	ok: bool
 ) {
 	switch b in body {
 	case ohttp_client.Body_Plain:
 		jerr := json.unmarshal_string(b, &resp)
-		if jerr != nil do return resp, nil
-		return
+		if jerr != nil do return resp, Error{type = .MALFORMED_RESPONSE, message = fmt.tprintf("Couldn't parse response: %#v", jerr)}, false
+		return resp, err, true
 	case ohttp_client.Body_Url_Encoded:
 		unreachable()
 	case ohttp_client.Body_Error:
 		unreachable()
 	}
-	return resp, Error{type = .MALFORMED_RESPONSE, message = "Couldn't parse response"}
+	unreachable()
 }
 
 highlight_text :: proc(text: string, highlights: [dynamic]string) -> string {
@@ -154,8 +156,9 @@ get_zg_response_for_input :: proc(
 	inp_buf: bytes.Buffer,
 ) -> (
 	ZG_Input_Response,
-	Maybe(ohttp_client.Body_Type),
-	Maybe(Error),
+	ohttp_client.Body_Type,
+	Error,
+	bool
 ) {
 	request := ohttp_client.Request {
 		method  = .Post,
@@ -165,32 +168,32 @@ get_zg_response_for_input :: proc(
 
 	res, rerr := ohttp_client.request(&request, "https://api.zerogpt.com/api/detect/detectText")
 	if rerr != nil {
-		return {}, nil, Error{type = .MALFORMED_RESPONSE, message = fmt.tprintf("request failed: %s", rerr)}
+		return {}, {}, Error{type = .MALFORMED_RESPONSE, message = fmt.tprintf("request failed: %#v", rerr)}, false
 	}
 	defer ohttp_client.response_destroy(&res)
 
 	body, alloc, berr := ohttp_client.response_body(&res)
 	if berr != nil {
-		return {}, body, Error{type = .MALFORMED_RESPONSE, message = fmt.tprintf("retreiving body failed: %s", berr)}
+		return {}, body, Error{type = .MALFORMED_RESPONSE, message = fmt.tprintf("retreiving body failed: %#v", berr)}, false
 	}
 	defer ohttp_client.body_destroy(body, alloc)
 
-	resp, reserr := zg_response_parse(body)
-	if reserr != nil {
+	resp, reserr, ok := zg_response_parse(body)
+	if !ok {
 		return resp, body, Error {
 			type = .MALFORMED_RESPONSE,
-			message = fmt.tprintf("parsing response body failed: %s", reserr),
-		}
+			message = fmt.tprintf("parsing response body failed: %#v", reserr),
+		}, false
 	}
 
 	if resp.code != 200 {
 		return resp, body, Error {
 			type = .MALFORMED_RESPONSE,
 			message = fmt.tprintf("ZeroGPT isn't accepting your input."),
-		}
+		}, false
 	}
 
-	return resp, body, nil
+	return resp, body, {}, true
 }
 
 render_key_value_info :: proc(key: string, value: string) -> string {
@@ -207,13 +210,18 @@ Options :: struct {
 	i: os.Handle `args:"pos=0,file=r" usage:"Input file. Optional, reads from stdin if omitted"`,
 	v: bool `usage:"Show version info"`,
 	j: bool `usage:"Output JSON response and exit. Useful for scripting"`,
+	l: log.Level `usage:"Set log level. Info by default. Options: Debug, Info, Warning, Error, Fatal"`,
 }
 
 opt: Options
+level := log.Level.Info
 
 main :: proc() {
 	style: flags.Parsing_Style = .Odin
 	flags.parse_or_exit(&opt, os.args, style)
+
+    if opt.l != nil do level = opt.l
+    context.logger = log.create_console_logger(level)
 
 	if opt.v {
 		fmt.printfln(
@@ -231,18 +239,18 @@ main :: proc() {
 		data := os.read_entire_file(opt.i) or_else panic("Failed to read file")
 		text = string(data)
 		if len(text) == 0 {
-			fmt.eprintln("[ERROR] File has no text on it")
+			log.errorf("File has no text on it")
 			os2.exit(1)
 		}
 	} else {
-		if !opt.j do fmt.println("[INFO] Reading from stdin...")
+		if !opt.j do log.infof("Reading from stdin...")
 		textRaw, err := os2.read_entire_file(os2.stdin, context.allocator)
 		if err != nil {
-			fmt.eprintln("[ERROR] Something went wrong when reading stdin")
+			log.errorf("Something went wrong when reading stdin: %#v", err)
 			os2.exit(1)
 		}
 		if len(textRaw) == 0 {
-			fmt.eprintln("[ERROR] Stdin is empty")
+			log.errorf("Stdin is empty")
 			os2.exit(1)
 		}
 		text = string(textRaw)
@@ -251,19 +259,25 @@ main :: proc() {
 	assert(text != "")
 
 	if len(text) > ZG_FREE_MAX_CHARS {
-		fmt.eprintfln(
-			"[WARN] Input's length is %d, which exceeds 15,000 characters (free limit)",
+		log.warnf(
+			"Input's length is %d, which exceeds 15,000 characters (free limit)",
 			len(text),
 		)
 	}
 
-	if !opt.j do fmt.println("[INFO] Processing input...")
+	if !opt.j do log.infof("Processing input...")
 
 	inp_buf := bytes.Buffer{}
 	bytes.buffer_init_string(&inp_buf, zg_prepare_input(text))
 	defer bytes.buffer_destroy(&inp_buf)
 
-	resp, body, err := get_zg_response_for_input(inp_buf)
+	resp, body, rerror, ok := get_zg_response_for_input(inp_buf)
+	
+	if !ok {
+		log.errorf("Something went wrong when we tried to fetch your result: %s %#v", rerror.message, rerror)
+		os2.exit(1)
+	}
+
 	if opt.j {
 		fmt.println(body)
 		os2.exit(0)
