@@ -14,7 +14,7 @@ $(BIN):
 	mkdir -p $(BIN)
 
 $(TARGET): | $(BIN)
-	odin build . -out:$(TARGET) -o:$(OPTIMIZATION) -target:$(PLATFORM) -define:VERSION=$(VERSION) -define:GIT_HASH=$(GIT_HASH) -define:COMP_DATE=$(COMP_DATE)
+	odin build . -out:$(TARGET) -o:$(OPTIMIZATION) -target:$(PLATFORM) -define:VERSION=$(VERSION) -define:GIT_HASH=x$(GIT_HASH) -define:COMP_DATE=$(COMP_DATE)
 
 clean:
 	rm -f $(TARGET)

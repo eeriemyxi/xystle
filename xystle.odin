@@ -210,7 +210,7 @@ display_version :: proc() {
     fmt.printfln(
         "xystle version %v (%v %v)",
         #config(VERSION, "none"),
-        #config(GIT_HASH, "none"),
+        #config(GIT_HASH, "none")[1:], // Sometimes, it gets interpreted as integer otherwise
         #config(COMP_DATE, "none"),
     )
 }
@@ -230,6 +230,8 @@ main :: proc() {
 	flags.parse_or_exit(&opt, os.args, style)
 
     if opt.l != nil do level = opt.l
+	fmt.println("%v", opt.l)
+
     context.logger = log.create_console_logger(level)
 
 	if opt.v {
