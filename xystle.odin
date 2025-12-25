@@ -16,6 +16,7 @@ import ohttp_client "odin-http/client"
 ZG_FREE_MAX_CHARS :: 15_000
 
 Error_Type :: enum int {
+	INVALID_INPUT,
 	MALFORMED_RESPONSE,
 }
 
@@ -38,17 +39,15 @@ ZG_Input_Response :: struct {
 	},
 }
 
-zg_prepare_input :: proc(input: string, allocator := context.allocator) -> string {
+zg_prepare_input :: proc(input: string, allocator := context.allocator) -> (string, Error, bool) {
 	m := make(map[string]string, allocator)
 	m["input_text"] = input
 	defer delete(m)
 
 	data, err := json.marshal(m)
-	if err != nil {
-		fmt.eprintfln("Error while marshaling: %s", err)
-	}
+	if err != nil do return "", {.INVALID_INPUT, fmt.tprintf("Error while marshalling: %s", err)}, false
 
-	return string(data)
+	return string(data), {}, true
 }
 
 zg_default_headers :: proc() -> (headers: ohttp.Headers) {
@@ -276,12 +275,17 @@ main :: proc() {
 	log.infof("Processing input...")
 
 	inp_buf := bytes.Buffer{}
-	bytes.buffer_init_string(&inp_buf, zg_prepare_input(text))
+	input, ierror, iok := zg_prepare_input(text)
+	if !iok {
+        log.errorf("Something went wrong when we tried to process your input: %s %#v", ierror.message, ierror)
+        os2.exit(1)
+	}
+	bytes.buffer_init_string(&inp_buf, input)
 	defer bytes.buffer_destroy(&inp_buf)
 
-	resp, body, rerror, ok := get_zg_response_for_input(inp_buf)
+	resp, body, rerror, rok := get_zg_response_for_input(inp_buf)
 	
-	if !ok {
+	if !rok {
 		log.errorf("Something went wrong when we tried to fetch your result: %s %#v", rerror.message, rerror)
 		os2.exit(1)
 	}
