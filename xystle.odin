@@ -223,16 +223,14 @@ Options :: struct {
 }
 
 opt: Options
-level := log.Level.Info
 
 main :: proc() {
+    opt.l = .Info
+
 	style: flags.Parsing_Style = .Odin
 	flags.parse_or_exit(&opt, os.args, style)
-
-    if opt.l != nil do level = opt.l
-	fmt.println("%v", opt.l)
-
-    context.logger = log.create_console_logger(level)
+	
+    context.logger = log.create_console_logger(opt.l)
 
 	if opt.v {
 		display_version()
