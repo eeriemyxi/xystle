@@ -76,7 +76,7 @@ zg_response_parse :: proc(
 ) -> (
 	resp: ZG_Input_Response,
 	err: Error,
-	ok: bool
+	ok: bool,
 ) {
 	switch b in body {
 	case ohttp_client.Body_Plain:
@@ -97,7 +97,7 @@ get_zg_response_for_input :: proc(
 	ZG_Input_Response,
 	ohttp_client.Body_Type,
 	Error,
-	bool
+	bool,
 ) {
 	request := ohttp_client.Request {
 		method  = .Post,
@@ -108,31 +108,46 @@ get_zg_response_for_input :: proc(
 
 	res, rerr := ohttp_client.request(&request, "https://api.zerogpt.com/api/detect/detectText")
 	if rerr != nil {
-		return {}, {}, Error{type = .MALFORMED_RESPONSE, message = fmt.tprintf("request failed: %#v", rerr)}, false
+		return {},
+			{},
+			Error{type = .MALFORMED_RESPONSE, message = fmt.tprintf("request failed: %#v", rerr)},
+			false
 	}
 	defer ohttp_client.response_destroy(&res)
 
 	body, alloc, berr := ohttp_client.response_body(&res)
 	if berr != nil {
-		return {}, body, Error{type = .MALFORMED_RESPONSE, message = fmt.tprintf("retreiving body failed: %#v", berr)}, false
+		return {},
+			body,
+			Error {
+				type = .MALFORMED_RESPONSE,
+				message = fmt.tprintf("retreiving body failed: %#v", berr),
+			},
+			false
 	}
 	log.debugf("body=%v alloc=%v", body, alloc)
 	defer ohttp_client.body_destroy(body, alloc)
 
 	resp, reserr, ok := zg_response_parse(body)
 	if !ok {
-		return resp, body, Error {
-			type = .MALFORMED_RESPONSE,
-			message = fmt.tprintf("parsing response body failed: %#v", reserr),
-		}, false
+		return resp,
+			body,
+			Error {
+				type = .MALFORMED_RESPONSE,
+				message = fmt.tprintf("parsing response body failed: %#v", reserr),
+			},
+			false
 	}
-    log.debugf("resp=%v", resp)
+	log.debugf("resp=%v", resp)
 
 	if resp.code != 200 {
-		return resp, body, Error {
-			type = .MALFORMED_RESPONSE,
-			message = fmt.tprintf("ZeroGPT isn't accepting your input."),
-		}, false
+		return resp,
+			body,
+			Error {
+				type = .MALFORMED_RESPONSE,
+				message = fmt.tprintf("ZeroGPT isn't accepting your input."),
+			},
+			false
 	}
 
 	return resp, body, {}, true

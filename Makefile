@@ -1,10 +1,14 @@
 OPTIMIZATION = aggressive
+PROGRAM_NAME = xystle
 BIN = bin
 PLATFORM = linux_amd64
-TARGET = $(BIN)/xystle
+TARGET = $(BIN)/$(PROGRAM_NAME)
 COMP_DATE = $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 GIT_HASH = $(shell git rev-parse --short HEAD)
 VERSION = $(shell git describe --tags --dirty --always)
+# Disabled: -vet
+EXTRA_FLAGS = -strict-style -vet-tabs -warnings-as-errors
+DEFINES = -define:VERSION=$(VERSION) -define:GIT_HASH=x$(GIT_HASH) 		-define:COMP_DATE=$(COMP_DATE)
 
 .PHONY: all clean
 
@@ -13,8 +17,8 @@ all: $(TARGET)
 $(BIN):
 	mkdir -p $(BIN)
 
-$(TARGET): | $(BIN)
-	odin build . -out:$(TARGET) -o:$(OPTIMIZATION) -target:$(PLATFORM) -define:VERSION=$(VERSION) -define:GIT_HASH=x$(GIT_HASH) -define:COMP_DATE=$(COMP_DATE)
+$(TARGET): *.odin | $(BIN)
+	odin build . -out:$(TARGET) -o:$(OPTIMIZATION) -target:$(PLATFORM) $(DEFINES) $(EXTRA_FLAGS)
 
 clean:
 	rm -f $(TARGET)

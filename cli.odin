@@ -12,27 +12,37 @@ import "core:terminal/ansi"
 highlight_text :: proc(text: string, highlights: [dynamic]string) -> string {
 	str := strings.builder_make()
 	strings.write_string(&str, text)
-	
-    // odinfmt: disable
-    for h in highlights {
-        strings.builder_replace_all(
-                &str,
-            h,
-            fmt.tprintf(
-                "%s%s%s%s%s",
-                ansi.CSI + ansi.BG_YELLOW + ";" + ansi.FG_RED + ansi.SGR +
-                    "[" +
-                    ansi.CSI + ansi.RESET + ansi.SGR,
-                ansi.CSI + ansi.BG_YELLOW + ansi.SGR,
-                h,
-                ansi.CSI + ansi.RESET + ansi.SGR,
-                ansi.CSI + ansi.BG_YELLOW + ";" + ansi.FG_RED + ansi.SGR +
-                    "]" +
-                    ansi.CSI + ansi.RESET + ansi.SGR,
-            ), 
-        )
-    }
-    // odinfmt: enable
+
+	for h in highlights {
+		strings.builder_replace_all(
+			&str,
+			h,
+			fmt.tprintf(
+				"%s%s%s%s%s",
+				ansi.CSI +
+				ansi.BG_YELLOW +
+				";" +
+				ansi.FG_RED +
+				ansi.SGR +
+				"[" +
+				ansi.CSI +
+				ansi.RESET +
+				ansi.SGR,
+				ansi.CSI + ansi.BG_YELLOW + ansi.SGR,
+				h,
+				ansi.CSI + ansi.RESET + ansi.SGR,
+				ansi.CSI +
+				ansi.BG_YELLOW +
+				";" +
+				ansi.FG_RED +
+				ansi.SGR +
+				"]" +
+				ansi.CSI +
+				ansi.RESET +
+				ansi.SGR,
+			),
+		)
+	}
 
 	return strings.to_string(str)
 }
@@ -164,7 +174,7 @@ main :: proc() {
 
 	if opt.j {
 		fmt.println(body)
-		os2.exit(0)
+		os2.exit(1)
 	}
 
 	display_zg_response(resp, text)
